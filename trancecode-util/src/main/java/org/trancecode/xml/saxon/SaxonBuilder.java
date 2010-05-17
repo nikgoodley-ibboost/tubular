@@ -17,8 +17,9 @@
  */
 package org.trancecode.xml.saxon;
 
-import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableList;
 import net.sf.saxon.Configuration;
+import net.sf.saxon.event.Receiver;
 import net.sf.saxon.event.TreeReceiver;
 import net.sf.saxon.om.NamePool;
 import net.sf.saxon.om.NamespaceIterator;
@@ -202,8 +203,8 @@ public class SaxonBuilder
     /**
      * Adds a new comment node.
      * 
-     * @param The
-     *            comment text
+     * @param comment
+     *            The comment text
      */
     public void comment(final String comment)
     {
@@ -243,7 +244,7 @@ public class SaxonBuilder
      */
     public void nodes(final XdmNode... nodes)
     {
-        nodes(ImmutableSet.of(nodes));
+        nodes(ImmutableList.of(nodes));
     }
 
     /**
