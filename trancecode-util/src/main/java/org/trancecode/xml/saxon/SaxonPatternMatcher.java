@@ -35,12 +35,11 @@ import org.trancecode.logging.Logger;
  * thread</a> for more information).
  * </p>
  * 
- * @See {@link XPathCompiler#compilePattern(String)}
+ * @see XPathCompiler#compilePattern(String)
  * @author Romain Deltour
  */
 public class SaxonPatternMatcher
 {
-
     private static final Logger LOG = Logger.getLogger(SaxonPatternMatcher.class);
     private XPathExecutable xpathExec;
 
@@ -50,7 +49,7 @@ public class SaxonPatternMatcher
      * @param processor
      *            The Saxon processor used to create the internal
      *            {@link XPathCompiler}
-     * @param patter
+     * @param pattern
      *            The XSLT pattern evaluated by this matcher
      * @throws NullPointerException
      *             is <code>processor</code> or <code>pattern</code> is
@@ -92,9 +91,8 @@ public class SaxonPatternMatcher
         }
         catch (final SaxonApiException e)
         {
-            LOG.warn("Unexpected {}: {}", e.getClass().getName(), e.getMessage());
+            LOG.warn("Unexpected {class.simpleName}: {message}", e, e);
             return false;
         }
-
     }
 }
