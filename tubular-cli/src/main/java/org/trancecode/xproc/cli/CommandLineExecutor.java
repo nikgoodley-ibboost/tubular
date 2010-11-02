@@ -156,4 +156,21 @@ public final class CommandLineExecutor {
         printWriter.flush();
         printWriter.close();
     }
+
+    /**
+     * Same as {@link Option#getValues()} but returns an empty array rather than
+     * {@code null}.
+     * 
+     * @see Option#getValues()
+     */
+    private static String[] getValues(final Option option)
+    {
+        final String[] values = option.getValues();
+        if (values != null)
+        {
+            return values;
+        }
+
+        return new String[0];
+    }
 }
