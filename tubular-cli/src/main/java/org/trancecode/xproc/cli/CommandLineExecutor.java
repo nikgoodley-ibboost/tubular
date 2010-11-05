@@ -17,36 +17,35 @@
  */
 package org.trancecode.xproc.cli;
 
+import java.io.File;
+import java.io.PrintWriter;
+import java.net.URL;
+import java.util.Properties;
+
+import javax.xml.transform.Source;
+import javax.xml.transform.TransformerException;
+import javax.xml.transform.URIResolver;
+
 import net.sf.saxon.s9api.QName;
 import net.sf.saxon.s9api.SaxonApiException;
 import net.sf.saxon.s9api.Serializer;
 import net.sf.saxon.s9api.XdmNode;
-
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.GnuParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-
-import org.apache.log4j.BasicConfigurator;
-
+import org.apache.log4j.ConsoleAppender;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
+import org.apache.log4j.PatternLayout;
 import org.trancecode.xproc.Configuration;
 import org.trancecode.xproc.Pipeline;
 import org.trancecode.xproc.PipelineProcessor;
 import org.trancecode.xproc.PipelineResult;
 import org.trancecode.xproc.RunnablePipeline;
-
-import java.io.File;
-import java.io.PrintWriter;
-
-import java.net.URL;
-
-import java.util.Properties;
-
-import javax.xml.transform.Source;
-import javax.xml.transform.TransformerException;
-import javax.xml.transform.URIResolver;
+import org.trancecode.xproc.Tubular;
 
 /**
  * @author Herve Quiroz
@@ -54,9 +53,8 @@ import javax.xml.transform.URIResolver;
  */
 public final class CommandLineExecutor
 {
-
     public static void main(final String[] args)
-    {
+    {    
         final int returnCode = main_internal(args);
         if (returnCode != 0)
         {
@@ -66,53 +64,63 @@ public final class CommandLineExecutor
 
     public static int main_internal(final String[] args)
     {
-        BasicConfigurator.configure();
-        final Options options = new Options();
-        final Option portBindingOption = new Option("b", "port-binding", true,
-                "Passes a port binding to the given XProc pipeline");
-        final Option optionOption = new Option("o", "option", true,
-                "Passes a option to the given XProc pipeline");
-        final Option paramOption = new Option("p", "param", true,
-                "Passes a parameter to the given XProc pipeline");
-        final Option librariesOption = new Option("l", "library", true,
-                "XProc pipeline library to load");
-        final Option xplOption = new Option("x", "xpl", true,
-                "XProc pipeline to load and run");
-        final Option primaryInputPortOption = new Option("i", "input-port", true,
-                "Passes the primary input port");
-        final Option primaryOutputPortOption = new Option("r", "output-port", true,
-                "Passes the primary output port");
-        final Option helpOption = new Option("h", "help", false, "Print help");
+    	Logger.getRootLogger().removeAllAppenders();
+        Logger.getRootLogger().addAppender(new ConsoleAppender(new PatternLayout("%m%n")));
+        Logger.getRootLogger().setLevel(Level.INFO);
 
-        xplOption.setArgName("uri");
-        xplOption.setRequired(true);
-        xplOption.setType(URL.class);
-        portBindingOption.setArgName("name=uri");
-        portBindingOption.setArgs(2);
-        portBindingOption.setValueSeparator('=');
-        optionOption.setArgName("name=value");
-        optionOption.setArgs(2);
-        optionOption.setValueSeparator('=');
-        paramOption.setArgName("name=value");
-        paramOption.setArgs(2);
-        paramOption.setValueSeparator('=');
+        final Options options = new Options();
+
+        final Option helpOption = new Option("h", "help", false, "Print help");
+        options.addOption(helpOption);
+
+        final Option librariesOption = new Option("l", "library", true, "XProc pipeline library to load");
         librariesOption.setArgName("uri");
         librariesOption.setArgs(Option.UNLIMITED_VALUES);
         librariesOption.setType(URL.class);
+        options.addOption(librariesOption);
+
+        final Option optionOption = new Option("o", "option", true, "Passes a option to the given XProc pipeline");
+        optionOption.setArgName("name=value");
+        optionOption.setArgs(2);
+        optionOption.setValueSeparator('=');
+        options.addOption(optionOption);
+
+        final Option paramOption = new Option("p", "param", true, "Passes a parameter to the given XProc pipeline");
+        paramOption.setArgName("name=value");
+        paramOption.setArgs(2);
+        paramOption.setValueSeparator('=');
+        options.addOption(paramOption);
+
+        final Option portBindingOption = new Option("b", "port-binding", true,
+                "Passes a port binding to the given XProc pipeline");
+        portBindingOption.setArgName("name=uri");
+        portBindingOption.setArgs(2);
+        portBindingOption.setValueSeparator('=');
+        options.addOption(portBindingOption);
+
+        final Option primaryInputPortOption = new Option("i", "input-port", true, "Passes the primary input port");
         primaryInputPortOption.setArgName("name=uri");
         primaryInputPortOption.setArgs(2);
         primaryInputPortOption.setValueSeparator('=');
+        options.addOption(primaryInputPortOption);
+
+        final Option primaryOutputPortOption = new Option("r", "output-port", true, "Passes the primary output port");
         primaryOutputPortOption.setArgName("name=uri");
         primaryOutputPortOption.setArgs(2);
         primaryOutputPortOption.setValueSeparator('=');
-        options.addOption(portBindingOption);
-        options.addOption(optionOption);
-        options.addOption(paramOption);
-        options.addOption(xplOption);
-        options.addOption(librariesOption);
-        options.addOption(primaryInputPortOption);
         options.addOption(primaryOutputPortOption);
-        options.addOption(helpOption);
+
+        final Option verboseOption = new Option("v", "verbose", false, "Display more information");
+        options.addOption(verboseOption);
+
+        final Option versionOption = new Option("V", "version", false, "Print version and exit");
+        options.addOption(versionOption);
+
+        final Option xplOption = new Option("x", "xpl", true, "XProc pipeline to load and run");
+        xplOption.setArgName("uri");
+        xplOption.setRequired(true);
+        xplOption.setType(URL.class);
+        options.addOption(xplOption);
 
         final GnuParser parser = new GnuParser();
 
@@ -126,6 +134,17 @@ public final class CommandLineExecutor
                 return 0;
             }
 
+            if (commandLine.hasOption(versionOption.getOpt()))
+            {
+                System.err.println(Tubular.productInformation());
+                return 0;
+            }
+
+            if (commandLine.hasOption(verboseOption.getOpt()))
+            {
+                Logger.getRootLogger().setLevel(Level.DEBUG);
+            }
+
             final Configuration configurationPipelineContext = new Configuration();
             final URIResolver uriResolver = configurationPipelineContext.getUriResolver();
             final PipelineProcessor pipelineProcessor = new PipelineProcessor(configurationPipelineContext);
@@ -135,22 +154,26 @@ public final class CommandLineExecutor
             {
                 for (final String library : libraries)
                 {
-                    pipelineProcessor.buildPipelineLibrary(optionValueToSource(uriResolver, library));
+                    // FIXME this will not really have any effect has the parsed
+                    // library is returned and the pipeline processor stays
+                    // unchanged
+                    pipelineProcessor.buildPipelineLibrary(newSource(uriResolver, library,
+                            "Cannot read library from %s", library));
                 }
             }
 
             // configurationPipelineContext.registerStepProcessor(null);
-            String xplValue = commandLine.getOptionValue(xplOption.getOpt());
+            final String xplValue = commandLine.getOptionValue(xplOption.getOpt());
 
             if (xplValue == null)
             {
-                System.err.println("Required pipeline given using the --"
-                        + xplOption.getLongOpt() + " option.");
+                System.err.println("Required pipeline given using the --" + xplOption.getLongOpt() + " option.");
                 printHelp(options);
                 return 2;
-            } else
+            }
+            else
             {
-                final Source xplSource = optionValueToSource(uriResolver, xplValue);
+                final Source xplSource = newSource(uriResolver, xplValue, "Cannot read pipeline from %s", xplValue);
 
                 if (xplSource != null)
                 {
@@ -161,62 +184,72 @@ public final class CommandLineExecutor
                     for (final String portBindingName : portBindingProperties.stringPropertyNames())
                     {
                         final String portBindingValue = portBindingProperties.getProperty(portBindingName);
-                        runnablePipeline.setPortBinding(portBindingName,
-                                optionValueToSource(uriResolver, portBindingValue));
+                        runnablePipeline.setPortBinding(
+                                portBindingName,
+                                newSource(uriResolver, portBindingValue, "Cannot bind port to resource from %s",
+                                        portBindingValue));
                     }
 
                     final String primaryInputPortValue = commandLine.getOptionValue(primaryInputPortOption.getOpt());
                     if (primaryInputPortValue != null)
                     {
-                        final Source primaryInputSource = optionValueToSource(uriResolver, primaryInputPortValue);
+                        final Source primaryInputSource = newSource(uriResolver, primaryInputPortValue,
+                                "Cannot bind port to resource from %s", primaryInputPortValue);
                         if (primaryInputSource != null)
                         {
-                            runnablePipeline.setPortBinding(runnablePipeline.getPipeline().getPrimaryInputPort().getPortName(), primaryInputSource);
+                            runnablePipeline.setPortBinding(runnablePipeline.getPipeline().getPrimaryInputPort()
+                                    .getPortName(), primaryInputSource);
                         }
                     }
 
                     final String primaryOutputPortValue = commandLine.getOptionValue(primaryOutputPortOption.getOpt());
-                    // TODO TK: final Result resolve = configurationPipelineContext.getProcessor().getUnderlyingConfiguration().getOutputURIResolver().resolve(primaryOutputPortValue, null);
+                    /* @todo TK: final Result resolve =
+                     * configurationPipelineContext.getProcessor().getUnderlyingConfiguration().getOutputURIResolver().resolve(primaryOutputPortValue,
+                     * null);
+                    */
 
                     final Properties optionProperties = commandLine.getOptionProperties(optionOption.getOpt());
                     for (final String optionName : optionProperties.stringPropertyNames())
                     {
                         final String optionValue = optionProperties.getProperty(optionName);
-                        runnablePipeline.withOption(new QName(optionName),
-                                optionValue);
+                        runnablePipeline.withOption(new QName(optionName), optionValue);
                     }
 
                     final Properties paramProperties = commandLine.getOptionProperties(paramOption.getOpt());
                     for (final String paramName : paramProperties.stringPropertyNames())
                     {
                         final String paramValue = paramProperties.getProperty(paramName);
-                        runnablePipeline.withParam(new QName(paramName),
-                                paramValue);
+                        runnablePipeline.withParam(new QName(paramName), paramValue);
                     }
 
                     final PipelineResult pipelineResult = runnablePipeline.run();
                     final Serializer serializer = new Serializer();
-                    serializer.setOutputStream(System.out); // TODO Use primary output port binding option
-                    for (final XdmNode xdmNode : pipelineResult.readNodes(pipelineResult.getPipeline().getPrimaryOutputPort().getPortName()))
+                    serializer.setOutputStream(System.out); // TODO Use primary
+                                                            // output port
+                                                            // binding option
+                    for (final XdmNode xdmNode : pipelineResult.readNodes(pipelineResult.getPipeline()
+                            .getPrimaryOutputPort().getPortName()))
                     {
                         try
                         {
                             configurationPipelineContext.getProcessor().writeXdmValue(xdmNode, serializer);
-                        } catch (final SaxonApiException ex)
+                        }
+                        catch (final SaxonApiException ex)
                         {
-                            // FIXME Logger.getLogger(CommandLineExecutor.class.getName()).log(Level.SEVERE, null, ex);
+                            throw new IllegalStateException("error serializing node from output port", ex);
                         }
                     }
                     System.out.println();
-                } else
+                }
+                else
                 {
-                    System.err.println(
-                            "Argument given to option --xpl is neither a URL nor or a file.");
+                    System.err.println("Argument given to option --xpl is neither a URL nor or a file.");
                     printHelp(options);
                     return 3;
                 }
             }
-        } catch (final ParseException ex)
+        }
+        catch (final ParseException ex)
         {
             printHelp(options);
             return 1;
@@ -224,38 +257,32 @@ public final class CommandLineExecutor
         return 0;
     }
 
-    private static Source optionValueToSource(final URIResolver uriResolver, final String portParamValue)
+    private static Source newSource(final URIResolver uriResolver, final String uri, final String errorMessage,
+            final Object... args)
     {
-        Source source = null;
         try
         {
-            source = uriResolver.resolve(portParamValue, null);
-        } catch (final TransformerException ex)
-        {
-            // Ignore, no URI, probably a file name
+            return uriResolver.resolve(uri, "");
         }
-        if (source == null)
+        catch (final TransformerException resolverError)
         {
-            final File file = new File(portParamValue);
             try
             {
-                source = uriResolver.resolve(file.toURI().toString(), null);
-            } catch (TransformerException ex)
+                return uriResolver.resolve(new File(uri).toURI().toString(), "");
+            }
+            catch (final TransformerException fileError)
             {
-                // Neither URI nor file name
+                throw new IllegalArgumentException(String.format(errorMessage, args), resolverError);
             }
         }
-        return source;
     }
 
     private static void printHelp(final Options options)
     {
         final HelpFormatter helpFormatter = new HelpFormatter();
         final PrintWriter printWriter = new PrintWriter(System.err);
-        helpFormatter.printHelp(printWriter, helpFormatter.getWidth(),
-                "java -jar tubular-cli.jar", null, options,
-                helpFormatter.getLeftPadding(), helpFormatter.getDescPadding(),
-                null, true);
+        helpFormatter.printHelp(printWriter, helpFormatter.getWidth(), "java -jar tubular-cli.jar", null, options,
+                helpFormatter.getLeftPadding(), helpFormatter.getDescPadding(), null, true);
         printWriter.flush();
         printWriter.close();
     }
