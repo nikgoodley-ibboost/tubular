@@ -1,0 +1,4 @@
+org.trancecode.xproc.xpath.IterationPositionXPathExtensionFunction
+org.trancecode.xproc.xpath.IterationSizeXPathExtensionFunction
+org.trancecode.xproc.xpath.StepAvailableXPathExtensionFunction
+org.trancecode.xproc.xpath.SystemPropertyXPathExtensionFunction
