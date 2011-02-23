@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<p:pipeline xmlns:p="http://www.w3.org/ns/xproc" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.w3.org/ns/xproc http://www.w3.org/TR/xproc/schemas/xproc.xsd">
+    <p:xslt>
+        <p:input port="source">
+            <p:inline>
+                <xml>Inline XML conversion with inline XSLT using XProc</xml>
+            </p:inline>
+        </p:input>
+ 
+        <p:input port="stylesheet">
+            <p:inline>
+                <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+                                version="1.0">
+                    <xsl:template match="/">
+                        <xsl:message terminate="yes">TEST OK</xsl:message>
+                    </xsl:template>
+                </xsl:stylesheet>
+            </p:inline>
+        </p:input>
+    </p:xslt>
+</p:pipeline>
