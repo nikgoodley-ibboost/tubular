@@ -21,6 +21,12 @@ package org.trancecode.xproc.step;
 
 import com.google.common.io.Closeables;
 import com.google.common.io.Files;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
+import java.net.URI;
+
 import net.sf.saxon.s9api.QName;
 import net.sf.saxon.s9api.Serializer;
 import net.sf.saxon.s9api.Serializer.Property;
@@ -31,14 +37,10 @@ import org.trancecode.xproc.XProcExceptions;
 import org.trancecode.xproc.port.XProcPorts;
 import org.trancecode.xproc.variable.XProcOptions;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.OutputStream;
-import java.net.URI;
-
 /**
  * @author Herve Quiroz
  */
+@ExternalResources(read = false, write = true)
 public final class StoreStepProcessor extends AbstractStepProcessor
 {
     private static final String DEFAULT_ENCODING = "UTF-8";
@@ -78,7 +80,8 @@ public final class StoreStepProcessor extends AbstractStepProcessor
 
         final String mimeType = input.getOptionValue(XProcOptions.MEDIA_TYPE, DEFAULT_MIMETYPE);
         final String encoding = input.getOptionValue(XProcOptions.ENCODING, DEFAULT_ENCODING);
-        final boolean omitXmlDeclaration = Boolean.parseBoolean(input.getOptionValue(XProcOptions.OMIT_XML_DECLARATION));
+        final boolean omitXmlDeclaration = Boolean
+                .parseBoolean(input.getOptionValue(XProcOptions.OMIT_XML_DECLARATION));
         final String doctypePublicId = input.getOptionValue(XProcOptions.DOCTYPE_PUBLIC, DEFAULT_DOCTYPE_PUBLIC);
         final String doctypeSystemId = input.getOptionValue(XProcOptions.DOCTYPE_SYSTEM, DEFAULT_DOCTYPE_SYSTEM);
         final String method = input.getOptionValue(XProcOptions.METHOD, DEFAULT_METHOD);
@@ -101,14 +104,15 @@ public final class StoreStepProcessor extends AbstractStepProcessor
             }
             else
             {
-                targetOutputStream = input.getPipelineContext().getOutputResolver().resolveOutputStream(href, input.getBaseUri().toString());
+                targetOutputStream = input.getPipelineContext().getOutputResolver()
+                        .resolveOutputStream(href, input.getBaseUri().toString());
             }
         }
         catch (final Exception e)
         {
             throw XProcExceptions.xc0050(input.getLocation());
         }
-        
+
         final Serializer serializer = new Serializer();
         serializer.setOutputStream(targetOutputStream);
         if (doctypePublicId != null)

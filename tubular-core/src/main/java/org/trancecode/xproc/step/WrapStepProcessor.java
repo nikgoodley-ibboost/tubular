@@ -19,8 +19,10 @@ package org.trancecode.xproc.step;
 
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableSet;
+
 import java.util.EnumSet;
 import java.util.Set;
+
 import net.sf.saxon.s9api.Axis;
 import net.sf.saxon.s9api.QName;
 import net.sf.saxon.s9api.SaxonApiException;
@@ -46,14 +48,14 @@ import org.trancecode.xproc.variable.XProcOptions;
  * {@code p:wrap}.
  * 
  * @author Emmanuel Tourdot
- * @see <a
- *      href="http://www.w3.org/TR/xproc/#c.wrap">p:wrap</a>
+ * @see <a href="http://www.w3.org/TR/xproc/#c.wrap">p:wrap</a>
  */
+@ExternalResources(read = false, write = false)
 public final class WrapStepProcessor extends AbstractStepProcessor
 {
-    private static final Set<XdmNodeKind> NODE_KINDS = ImmutableSet.of(XdmNodeKind.DOCUMENT, XdmNodeKind.ELEMENT, XdmNodeKind.TEXT,
-            XdmNodeKind.PROCESSING_INSTRUCTION, XdmNodeKind.COMMENT);
-    
+    private static final Set<XdmNodeKind> NODE_KINDS = ImmutableSet.of(XdmNodeKind.DOCUMENT, XdmNodeKind.ELEMENT,
+            XdmNodeKind.TEXT, XdmNodeKind.PROCESSING_INSTRUCTION, XdmNodeKind.COMMENT);
+
     @Override
     public QName getStepType()
     {
@@ -70,8 +72,8 @@ public final class WrapStepProcessor extends AbstractStepProcessor
         final String wrapperNamespaceUri = input.getOptionValue(XProcOptions.WRAPPER_NAMESPACE, null);
         final String groupAdjacent = input.getOptionValue(XProcOptions.GROUP_ADJACENT);
 
-        final QName newName = StepUtils.getNewNamespace(wrapperPrefix, wrapperNamespaceUri, wrapperLocalName, input.getStep().getLocation(),
-                input.getStep().getNode());
+        final QName newName = StepUtils.getNewNamespace(wrapperPrefix, wrapperNamespaceUri, wrapperLocalName, input
+                .getStep().getLocation(), input.getStep().getNode());
 
         final SaxonProcessorDelegate wrapDelegate = new AbstractSaxonProcessorDelegate()
         {
@@ -203,14 +205,14 @@ public final class WrapStepProcessor extends AbstractStepProcessor
             final XPathSelector xPathSelector = xPathCompiler.compile(groupAdjacent).load();
             xPathSelector.setContextItem(node);
             final XdmItem item1 = xPathSelector.evaluateSingle();
-            final XdmSequenceIterator iterator = next? node.axisIterator(Axis.FOLLOWING_SIBLING) :
-                        node.axisIterator(Axis.PRECEDING_SIBLING);
+            final XdmSequenceIterator iterator = next ? node.axisIterator(Axis.FOLLOWING_SIBLING) : node
+                    .axisIterator(Axis.PRECEDING_SIBLING);
             final XdmItem item2 = getNextSkpNode(iterator, xPathSelector);
             return item2 != null && item1.getStringValue().equals(item2.getStringValue());
         }
-        catch (SaxonApiException e)
+        catch (final SaxonApiException e)
         {
-            //TODO throw real XProcException ?
+            // TODO throw real XProcException ?
             e.printStackTrace();
         }
         return false;
@@ -221,15 +223,16 @@ public final class WrapStepProcessor extends AbstractStepProcessor
         while (iterator.hasNext())
         {
             final XdmNode itm = (XdmNode) iterator.next();
-            if (XdmNodeKind.ELEMENT.equals(itm.getNodeKind()) ||
-                (XdmNodeKind.TEXT.equals(itm.getNodeKind()) && !"".equals(StringUtils.trim(itm.getStringValue()))))
+            if (XdmNodeKind.ELEMENT.equals(itm.getNodeKind())
+                    || (XdmNodeKind.TEXT.equals(itm.getNodeKind()) && !""
+                            .equals(StringUtils.trim(itm.getStringValue()))))
             {
                 try
                 {
                     xPathSelector.setContextItem(itm);
                     return xPathSelector.evaluateSingle();
                 }
-                catch (SaxonApiException e)
+                catch (final SaxonApiException e)
                 {
                     // TODO is it correct ?
                     return null;

@@ -42,7 +42,6 @@ import org.trancecode.logging.Logger;
 import org.trancecode.xml.AbstractHasLocation;
 import org.trancecode.xml.Location;
 import org.trancecode.xproc.Environment;
-import org.trancecode.xproc.XProcExceptions;
 import org.trancecode.xproc.binding.DocumentPortBinding;
 import org.trancecode.xproc.binding.PipePortBinding;
 import org.trancecode.xproc.binding.PortBinding;
@@ -80,6 +79,7 @@ public final class Step extends AbstractHasLocation implements StepContainer
     private final XdmNode node;
     private final QName type;
     private final String name;
+    private final String internalName;
     private final StepProcessor stepProcessor;
     private final List<Step> steps;
     private final boolean compoundStep;
@@ -89,26 +89,28 @@ public final class Step extends AbstractHasLocation implements StepContainer
 
     public static Step newStep(final QName type, final StepProcessor stepProcessor, final boolean compoundStep)
     {
-        return new Step(null, type, null, null, stepProcessor, compoundStep, EMPTY_VARIABLE_LIST, EMPTY_PARAMETER_MAP,
-                EMPTY_PORT_MAP, EMPTY_STEP_LIST);
+        return new Step(null, type, null, null, null, stepProcessor, compoundStep, EMPTY_VARIABLE_LIST,
+                EMPTY_PARAMETER_MAP, EMPTY_PORT_MAP, EMPTY_STEP_LIST);
     }
 
     public static Step newStep(final XdmNode node, final QName type, final StepProcessor stepProcessor,
             final boolean compoundStep)
     {
-        return new Step(node, type, null, null, stepProcessor, compoundStep, EMPTY_VARIABLE_LIST, EMPTY_PARAMETER_MAP,
-                EMPTY_PORT_MAP, EMPTY_STEP_LIST);
+        return new Step(node, type, null, null, null, stepProcessor, compoundStep, EMPTY_VARIABLE_LIST,
+                EMPTY_PARAMETER_MAP, EMPTY_PORT_MAP, EMPTY_STEP_LIST);
     }
 
-    private Step(final XdmNode node, final QName type, final String name, final Location location,
-            final StepProcessor stepProcessor, final boolean compoundStep, final Map<QName, Variable> variables,
-            final Map<QName, Variable> parameters, final Map<String, Port> ports, final Iterable<Step> steps)
+    private Step(final XdmNode node, final QName type, final String name, final String internalName,
+            final Location location, final StepProcessor stepProcessor, final boolean compoundStep,
+            final Map<QName, Variable> variables, final Map<QName, Variable> parameters, final Map<String, Port> ports,
+            final Iterable<Step> steps)
     {
         super(location);
 
         this.node = node;
         this.type = type;
         this.name = name;
+        this.internalName = internalName;
 
         assert stepProcessor != null;
         this.stepProcessor = stepProcessor;
@@ -126,6 +128,11 @@ public final class Step extends AbstractHasLocation implements StepContainer
                 variables);
     }
 
+    public boolean isPipelineStep()
+    {
+        return isCompoundStep() && !(getStepProcessor() instanceof CoreStepProcessor);
+    }
+
     public Step setName(final String name)
     {
         LOG.trace("{@method} {} -> {}", this.name, name);
@@ -135,8 +142,19 @@ public final class Step extends AbstractHasLocation implements StepContainer
             return this;
         }
 
-        Step step = new Step(node, type, name, location, stepProcessor, compoundStep, variables, parameters, ports,
-                steps);
+        assert internalName == null : internalName;
+        final String newInternalName;
+        if (isPipelineStep())
+        {
+            newInternalName = this.name;
+            LOG.trace("newInternalName = {}", newInternalName);
+        }
+        else
+        {
+            newInternalName = null;
+        }
+        Step step = new Step(node, type, name, newInternalName, location, stepProcessor, compoundStep, variables,
+                parameters, ports, steps);
         for (final Port port : ports.values())
         {
             step = step.withPort(port.setStepName(name));
@@ -152,14 +170,10 @@ public final class Step extends AbstractHasLocation implements StepContainer
 
     public Step declareVariable(final Variable variable)
     {
-        //assert !variables.containsKey(variable.getName()) : "step = " + name + " ; variable = " + variable.getName()
-        //        + " ; variables = " + variables;
-        if (variables.containsKey(variable.getName()))
-        {
-            throw XProcExceptions.xs0004(variable);
-        }
-        return new Step(node, type, name, location, stepProcessor, compoundStep, TcMaps.copyAndPut(variables,
-                variable.getName(), variable), parameters, ports, steps);
+        assert !variables.containsKey(variable.getName()) : "step = " + name + " ; variable = " + variable.getName()
+                + " ; variables = " + variables;
+        return new Step(node, type, name, internalName, location, stepProcessor, compoundStep, TcMaps.copyAndPut(
+                variables, variable.getName(), variable), parameters, ports, steps);
     }
 
     public Step declareVariables(final Map<QName, Variable> variables)
@@ -178,6 +192,13 @@ public final class Step extends AbstractHasLocation implements StepContainer
         return name;
     }
 
+    @ReturnsNullable
+    public String getInternalName()
+    {
+        assert internalName == null || isPipelineStep() : internalName;
+        return internalName;
+    }
+
     public Step declarePort(final Port port)
     {
         LOG.trace("{@method} step = {} ; port = {}", name, port);
@@ -191,7 +212,8 @@ public final class Step extends AbstractHasLocation implements StepContainer
         final Map<String, Port> newPorts = Maps.newHashMap(this.ports);
         newPorts.putAll(Maps.uniqueIndex(ports, PortFunctions.getPortName()));
 
-        return new Step(node, type, name, location, stepProcessor, compoundStep, variables, parameters, newPorts, steps);
+        return new Step(node, type, name, internalName, location, stepProcessor, compoundStep, variables, parameters,
+                newPorts, steps);
     }
 
     public Port getPort(final String name)
@@ -367,13 +389,9 @@ public final class Step extends AbstractHasLocation implements StepContainer
         final Variable option = variables.get(name);
         Preconditions.checkArgument(option != null, "no such option: %s", name);
         Preconditions.checkArgument(option.isOption(), "not an options: %s", name);
-        if (option.getSelect() != null)
-        {
-            throw XProcExceptions.xs0004(option);
-        }
 
-        return new Step(node, type, this.name, location, stepProcessor, compoundStep, TcMaps.copyAndPut(variables,
-                name, option.setSelect(select).setNode(node)), parameters, ports, steps);
+        return new Step(node, type, this.name, internalName, location, stepProcessor, compoundStep, TcMaps.copyAndPut(
+                variables, name, option.setSelect(select).setNode(node)), parameters, ports, steps);
     }
 
     public Step withParam(final QName name, final String select, final String value, final Location location)
@@ -385,7 +403,7 @@ public final class Step extends AbstractHasLocation implements StepContainer
             final XdmNode node)
     {
         Preconditions.checkArgument(!parameters.containsKey(name), "parameter already set: %s", name);
-        return new Step(node, type, this.name, location, stepProcessor, compoundStep, variables,
+        return new Step(node, type, this.name, internalName, location, stepProcessor, compoundStep, variables,
                 TcMaps.copyAndPut(parameters, name,
                         Variable.newParameter(name, location).setSelect(select).setValue(value).setNode(node)), ports,
                 steps);
@@ -402,8 +420,8 @@ public final class Step extends AbstractHasLocation implements StepContainer
         Preconditions.checkArgument(option != null, "no such option: %s", name);
         Preconditions.checkArgument(option.isOption(), "not an options: %s", name);
 
-        return new Step(node, type, this.name, location, stepProcessor, compoundStep, TcMaps.copyAndPut(variables,
-                name, option.setValue(value).setNode(node)), parameters, ports, steps);
+        return new Step(node, type, this.name, internalName, location, stepProcessor, compoundStep, TcMaps.copyAndPut(
+                variables, name, option.setValue(value).setNode(node)), parameters, ports, steps);
     }
 
     public boolean hasOptionDeclared(final QName name)
@@ -432,7 +450,7 @@ public final class Step extends AbstractHasLocation implements StepContainer
     {
         assert ports.containsKey(port.getPortName());
 
-        return new Step(node, type, name, location, stepProcessor, compoundStep, variables, parameters,
+        return new Step(node, type, name, internalName, location, stepProcessor, compoundStep, variables, parameters,
                 TcMaps.copyAndPut(ports, port.getPortName(), port), steps);
     }
 
@@ -461,7 +479,8 @@ public final class Step extends AbstractHasLocation implements StepContainer
         {
             return this;
         }
-        return new Step(node, type, name, location, stepProcessor, compoundStep, variables, parameters, ports, steps);
+        return new Step(node, type, name, internalName, location, stepProcessor, compoundStep, variables, parameters,
+                ports, steps);
     }
 
     public XdmNode getNode()
@@ -475,8 +494,8 @@ public final class Step extends AbstractHasLocation implements StepContainer
         Preconditions.checkNotNull(step);
         Preconditions.checkState(isCompoundStep());
 
-        return new Step(node, type, name, location, stepProcessor, compoundStep, variables, parameters, ports,
-                TcIterables.append(steps, step));
+        return new Step(node, type, name, internalName, location, stepProcessor, compoundStep, variables, parameters,
+                ports, TcIterables.append(steps, step));
 
     }
 
@@ -489,7 +508,8 @@ public final class Step extends AbstractHasLocation implements StepContainer
         }
 
         LOG.trace("{@method} step = {} ; steps = {}", name, steps);
-        return new Step(node, type, name, location, stepProcessor, compoundStep, variables, parameters, ports, steps);
+        return new Step(node, type, name, internalName, location, stepProcessor, compoundStep, variables, parameters,
+                ports, steps);
     }
 
     public List<Step> getSubpipeline()
@@ -504,7 +524,8 @@ public final class Step extends AbstractHasLocation implements StepContainer
             return this;
         }
 
-        return new Step(node, type, name, location, stepProcessor, compoundStep, variables, parameters, ports, steps);
+        return new Step(node, type, name, internalName, location, stepProcessor, compoundStep, variables, parameters,
+                ports, steps);
     }
 
     public Variable getVariable(final QName name)
