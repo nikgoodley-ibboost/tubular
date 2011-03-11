@@ -23,37 +23,26 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.StringWriter;
 import java.io.UnsupportedEncodingException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Set;
-
 import javax.mail.MessagingException;
 import javax.mail.internet.ContentType;
 import javax.mail.internet.MimeUtility;
 import javax.mail.internet.ParseException;
-import javax.xml.transform.Result;
-import javax.xml.transform.TransformerException;
-
-import net.sf.saxon.TransformerFactoryImpl;
-import net.sf.saxon.lib.OutputURIResolver;
 import net.sf.saxon.s9api.QName;
 import net.sf.saxon.s9api.Serializer;
 import net.sf.saxon.s9api.XdmNode;
 import org.apache.commons.io.IOUtils;
 import org.trancecode.io.MediaTypes;
-import org.trancecode.logging.Logger;
 import org.trancecode.xml.Location;
-import org.trancecode.xml.XmlException;
-import org.trancecode.xproc.Environment;
 import org.trancecode.xproc.XProcExceptions;
-import org.trancecode.xproc.port.EnvironmentPort;
-import org.trancecode.xproc.port.PortReference;
-import org.trancecode.xproc.step.Step.Log;
 import org.trancecode.xproc.variable.XProcOptions;
 
 /**
@@ -234,7 +223,7 @@ public final class StepUtils
         {
             final String prefix = (newPrefix == null) ? node.getProcessor().getUnderlyingConfiguration().getNamePool()
                     .suggestPrefixForURI(newNamespace) : newPrefix;
-            return new QName(prefix, newNamespace, newName);
+            return new QName((prefix == null) ? "" : prefix, newNamespace, newName);
         }
     }
 
@@ -275,6 +264,7 @@ public final class StepUtils
         }
         return contentType;
     }
+
 
     public static void writeLogs(final Step step, final Environment environment)
     {
@@ -322,6 +312,28 @@ public final class StepUtils
                     }
                 }
             }
+        }
+    public static URI getUri(final String namespace)
+    {
+        if (namespace == null)
+        {
+            return null;
+        }
+        try
+        {
+            final URI uri = new URI(namespace);
+            if (!uri.isAbsolute())
+            {
+                return null;
+            }
+            else
+            {
+                return uri.resolve(namespace);
+            }
+        }
+        catch (URISyntaxException e)
+        {
+            return null;
         }
     }
 }
