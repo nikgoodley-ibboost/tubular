@@ -257,10 +257,22 @@ public final class XProcExceptions
                 "It is a dynamic error if the document is not valid or the step doesn't support DTD validation.");
     }
 
+    public static XProcException xc0028(final Location location)
+    {
+        return newXProcException(Type.STEP, 28, location,
+                "it is a dynamic error if the content of the c:body element does not consist entirely of characters");
+    }
+
     public static XProcException xc0029(final Location location)
     {
         return newXProcException(Type.STEP, 29, location,
                 "It is a dynamic error if an XInclude error occurs during processing.");
+    }
+
+    public static XProcException xc0030()
+    {
+        return newXProcException(Type.STEP, 30, null,
+                "It is a dynamic error if the override-content-type value cannot be used (e.g. text/plain to override image/png).");
     }
 
     public static XProcException xc0035(final Location location)

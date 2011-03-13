@@ -74,6 +74,7 @@ import org.apache.http.protocol.BasicHttpContext;
 import org.apache.http.protocol.HttpContext;
 import org.trancecode.logging.Logger;
 import org.trancecode.xml.saxon.SaxonAxis;
+import org.trancecode.xml.saxon.SaxonLocation;
 import org.trancecode.xproc.PipelineException;
 import org.trancecode.xproc.XProcExceptions;
 import org.trancecode.xproc.XProcXmlModel;
@@ -140,6 +141,7 @@ class RequestParser
         final CredentialsProvider credentialsProvider = parseAuthentication(requestNode);
         request.setCredentials(credentialsProvider);
         request.setHttpRequest(constructMethod(method, hrefUri));
+        request.setOverrideContentType(requestNode.getAttributeValue(XProcXmlModel.Attributes.OVERRIDE_CONTENT_TYPE));
 
         return request;
     }
@@ -228,19 +230,43 @@ class RequestParser
     private String getContentString(final XdmNode node, final ContentType contentType, final String encoding)
     {
         final StringBuilder contentBuilder = new StringBuilder();
-        if (!StringUtils.equalsIgnoreCase("xml", contentType.getSubType())
-                || StringUtils.equalsIgnoreCase("base64", encoding))
+        if (!StringUtils.containsIgnoreCase(contentType.getSubType(), "xml")
+                || StringUtils.equalsIgnoreCase(encoding, "base64"))
         {
             final Iterable<XdmItem> children = SaxonAxis.axis(node, Axis.CHILD);
             for (final XdmItem aNode : children)
             {
                 if (!XdmNodeKind.TEXT.equals(((XdmNode) aNode).getNodeKind()))
                 {
-                    throw XProcExceptions.xc0022(node);
+                    throw XProcExceptions.xc0028(SaxonLocation.of(node));
                 }
                 else
                 {
                     contentBuilder.append(StringEscapeUtils.unescapeHtml(aNode.toString()));
+                }
+            }
+        }
+        else
+        {
+            final Iterable<XdmItem> children = SaxonAxis.axis(node, Axis.CHILD);
+            boolean oneElement = false;
+            for (final XdmItem aNode : children)
+            {
+                final XdmNodeKind kind = ((XdmNode) aNode).getNodeKind();
+                if (XdmNodeKind.TEXT.equals(kind) && !StringUtils.isEmpty(aNode.getStringValue().trim()))
+                {
+                    throw XProcExceptions.xc0022(node);
+                }
+                else if (XdmNodeKind.ELEMENT.equals(kind))
+                {
+                    if (oneElement)
+                    {
+                        throw XProcExceptions.xc0022(node);
+                    }
+                    else
+                    {
+                        oneElement = true;
+                    }
                 }
             }
         }
